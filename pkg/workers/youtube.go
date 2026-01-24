@@ -5,14 +5,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os/exec"
 	"strings"
 )
 
 func YoutubeDownloader(link string, msgs chan Message) {
-	msgs <- info_msg(fmt.Sprintf("Downloading using yt-dlp %s...\n", link))
-
-	cmd := exec.Command("yt-dlp", "--newline", "--progress-template", "{'progress_percentage':'%(progress._percent_str)s','progress total':'%(progress._total_bytes_str)s','speed':'%(progress._speed_str)s','ETA':'%(progress._eta_str)s'}", link)
+	cmd := exec.Command("yt-dlp",
+		"-f", "bestvideo[height<=1440]+bestaudio/best[height<=1440]", // good format
+		"--newline",           // prevent flushing progress
+		"--no-warnings",       // without any warnings, except errors
+		"--progress-template", // indicate that we should use the provided template for display progress
+		"{'progress_percentage':'%(progress._percent_str)s','progress total':'%(progress._total_bytes_str)s','speed':'%(progress._speed_str)s','ETA':'%(progress._eta_str)s'}",
+		link, // actually a link on the target video
+	)
 
 	go func() {
 		title_cmd := exec.Command("yt-dlp", "--ignore-errors", "--no-warnings", "--dump-json", link)
@@ -25,6 +31,10 @@ func YoutubeDownloader(link string, msgs chan Message) {
 		json.Unmarshal(out, &dump)
 		if err != nil {
 			msgs <- error_msg(fmt.Sprintf("Error parsing json: %v\n", err))
+		}
+
+		if _, ok := <-msgs; !ok {
+			return
 		}
 
 		msgs <- Message{Type: MessageTypeTitle, Content: fmt.Sprintf(
@@ -70,10 +80,12 @@ func processOutput(reader io.Reader, msgs chan Message) {
 		line := scanner.Text() + "\n"
 		if strings.Contains(line, "progress_percentage") {
 			msgs <- Message{Type: MessageTypeProgress, Content: line}
-			continue
+		} else if strings.Contains(line, "ERROR") {
+			msgs <- Message{Type: MessageTypeError, Content: line}
+		} else if strings.Contains(line, "has already been downloaded") {
+			msgs <- Message{Type: MessageTypeAlreadyExists, Content: line}
 		}
-
-		msgs <- info_msg(line)
+		log.Println(line)
 	}
 
 	if err := scanner.Err(); err != nil && err != io.EOF {

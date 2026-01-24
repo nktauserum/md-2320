@@ -74,6 +74,9 @@ func (h *Handler) HandleRequest(ctx *th.Context, message telego.Message) error {
 			logBuilder.WriteString("\n**" + msg.Content + "**")
 		case workers.MessageTypeTitle:
 			title = msg.Content
+		case workers.MessageTypeAlreadyExists:
+			lastPercentage = "100%"
+			logBuilder.WriteString("Has already been downloaded.\n")
 		case workers.MessageTypeProgress:
 			jsonStr := strings.ReplaceAll(msg.Content, "'", "\"")
 
@@ -92,13 +95,13 @@ func (h *Handler) HandleRequest(ctx *th.Context, message telego.Message) error {
 
 		now := time.Now()
 		if now.Sub(lastUpdateTime) >= updateInterval || msg.Type == workers.MessageTypeError {
-			text := fmt.Sprintf("%s\n\n%s\n\n**progress: %s**", title, logBuilder.String(), lastPercentage)
+			text := fmt.Sprintf("%s\n%s\n**progress: %s**", title, logBuilder.String(), lastPercentage)
 			update_msg(ctx, tg_msg, text)
 			lastUpdateTime = now
 		}
 	}
 
-	text := fmt.Sprintf("%s\n\n%s\n\n**progress: %s (completed)**", title, logBuilder.String(), lastPercentage)
+	text := fmt.Sprintf("%s\n%s\n**progress: %s (completed)**", title, logBuilder.String(), lastPercentage)
 	update_msg(ctx, tg_msg, text)
 
 	return nil

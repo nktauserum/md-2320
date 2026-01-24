@@ -7,6 +7,7 @@ const (
 	MessageTypeInfo
 	MessageTypeError
 	MessageTypeTitle
+	MessageTypeAlreadyExists
 )
 
 type Message struct {
