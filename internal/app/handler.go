@@ -5,12 +5,17 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
 
 	"github.com/nktauserum/md-2320/internal/config"
 	"github.com/nktauserum/md-2320/internal/workers"
+)
+
+const (
+	updateInterval = 5 * time.Second
 )
 
 type Handler struct {
@@ -38,6 +43,7 @@ func update_msg(ctx *th.Context, msg *telego.Message, text string) {
 	ctx.Bot().EditMessageText(ctx, &telego.EditMessageTextParams{
 		ChatID:    msg.Chat.ChatID(),
 		MessageID: msg.MessageID,
+		ParseMode: telego.ModeMarkdown,
 		Text:      text,
 	})
 }
@@ -54,31 +60,43 @@ func (h *Handler) HandleRequest(ctx *th.Context, message telego.Message) error {
 	messages := make(chan workers.Message)
 
 	var logBuilder strings.Builder
+	var lastPercentage string = "0%"
+	var lastUpdateTime time.Time
+
 	go h.w["youtube"](message.Text, messages)
 
 	for msg := range messages {
-		var percentage string = "0%"
-
 		switch msg.Type {
 		case workers.MessageTypeInfo:
-			logBuilder.WriteString(msg.Content)
+			logBuilder.WriteString("\n" + msg.Content)
 		case workers.MessageTypeError:
-			logBuilder.WriteString("**" + msg.Content + "**")
+			logBuilder.WriteString("\n**" + msg.Content + "**")
 		case workers.MessageTypeProgress:
 			jsonStr := strings.ReplaceAll(msg.Content, "'", "\"")
 
 			var progress map[string]string
 			err := json.Unmarshal([]byte(jsonStr), &progress)
 			if err != nil {
-				messages <- workers.Message{Type: workers.MessageTypeError, Content: ("error parsing json string: " + err.Error())}
+				if logBuilder.Len() > 0 {
+					logBuilder.WriteString("\n")
+				}
+				logBuilder.WriteString("**error parsing json string: " + err.Error() + "**")
 				continue
 			}
 
-			percentage = strings.TrimSpace(progress["progress_percentage"])
+			lastPercentage = strings.TrimSpace(progress["progress_percentage"])
 		}
 
-		update_msg(ctx, tg_msg, fmt.Sprintf("%s\n\nprogress: %s", logBuilder.String(), percentage))
+		now := time.Now()
+		if now.Sub(lastUpdateTime) >= updateInterval || msg.Type == workers.MessageTypeError {
+			text := fmt.Sprintf("%s\n\n**progress: %s**", logBuilder.String(), lastPercentage)
+			update_msg(ctx, tg_msg, text)
+			lastUpdateTime = now
+		}
 	}
+
+	text := fmt.Sprintf("%s\n\nprogress: %s (completed)", logBuilder.String(), lastPercentage)
+	update_msg(ctx, tg_msg, text)
 
 	return nil
 }
