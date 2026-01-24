@@ -9,7 +9,7 @@ import (
 	th "github.com/mymmrac/telego/telegohandler"
 
 	"github.com/nktauserum/md-2320/internal/config"
-	"github.com/nktauserum/md-2320/internal/workers"
+	"github.com/nktauserum/md-2320/pkg/workers"
 )
 
 type Application struct {

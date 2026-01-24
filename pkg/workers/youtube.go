@@ -2,6 +2,7 @@ package workers
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os/exec"
@@ -9,9 +10,31 @@ import (
 )
 
 func YoutubeDownloader(link string, msgs chan Message) {
-	msgs <- info_msg(fmt.Sprintf("Downloading using yt-dlp %s...\n\n", link))
+	msgs <- info_msg(fmt.Sprintf("Downloading using yt-dlp %s...\n", link))
 
 	cmd := exec.Command("yt-dlp", "--newline", "--progress-template", "{'progress_percentage':'%(progress._percent_str)s','progress total':'%(progress._total_bytes_str)s','speed':'%(progress._speed_str)s','ETA':'%(progress._eta_str)s'}", link)
+
+	go func() {
+		title_cmd := exec.Command("yt-dlp", "--ignore-errors", "--no-warnings", "--dump-json", link)
+		out, err := title_cmd.Output()
+		if err != nil {
+			msgs <- error_msg(fmt.Sprintf("Error starting command: %v\n", err))
+		}
+
+		var dump map[string]any
+		json.Unmarshal(out, &dump)
+		if err != nil {
+			msgs <- error_msg(fmt.Sprintf("Error parsing json: %v\n", err))
+		}
+
+		msgs <- Message{Type: MessageTypeTitle, Content: fmt.Sprintf(
+			"**[%s](%s) - [%s](%s)**",
+			dump["title"].(string),
+			link,
+			dump["channel"].(string),
+			dump["channel_url"].(string),
+		)}
+	}()
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

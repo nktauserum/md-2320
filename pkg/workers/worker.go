@@ -6,6 +6,7 @@ const (
 	MessageTypeProgress = iota
 	MessageTypeInfo
 	MessageTypeError
+	MessageTypeTitle
 )
 
 type Message struct {
