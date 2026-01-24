@@ -9,6 +9,7 @@ import (
 	th "github.com/mymmrac/telego/telegohandler"
 
 	"github.com/nktauserum/md-2320/internal/config"
+	"github.com/nktauserum/md-2320/internal/workers"
 )
 
 type Application struct {
@@ -33,7 +34,9 @@ func (a *Application) Run() error {
 		return err
 	}
 
-	handler := NewHandler(a.c)
+	handler := NewHandler(a.c, map[string]workers.Worker{
+		"youtube": workers.YoutubeDownloader,
+	})
 
 	updates, _ := bot.UpdatesViaLongPolling(ctx, nil)
 	bh, _ := th.NewBotHandler(bot, updates)

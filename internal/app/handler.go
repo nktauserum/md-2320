@@ -7,14 +7,16 @@ import (
 	th "github.com/mymmrac/telego/telegohandler"
 
 	"github.com/nktauserum/md-2320/internal/config"
+	"github.com/nktauserum/md-2320/internal/workers"
 )
 
 type Handler struct {
 	c *config.Config
+	w map[string]workers.Worker
 }
 
-func NewHandler(c *config.Config) *Handler {
-	return &Handler{c}
+func NewHandler(c *config.Config, workers map[string]workers.Worker) *Handler {
+	return &Handler{c, workers}
 }
 
 func (h *Handler) is_authorized(user_id int64) bool {
@@ -36,8 +38,12 @@ func (h *Handler) HandleRequest(ctx *th.Context, message telego.Message) error {
 		return nil
 	}
 
-	send_text(ctx, message.Chat.ChatID(),
-		"Welcome to the sacred place, my master.")
+	messages := make(chan string)
+
+	go h.w["youtube"](message.Text, messages)
+	for msg := range messages {
+		send_text(ctx, message.Chat.ChatID(), msg)
+	}
 
 	return nil
 }
