@@ -10,7 +10,9 @@ import (
 	"strings"
 )
 
-func YoutubeDownloader(link string, msgs chan Message) {
+type YoutubeDownloader struct{}
+
+func (y YoutubeDownloader) Process(link string, msgs chan Message) {
 	cmd := exec.Command("yt-dlp",
 		"-f", "bestvideo[height<=1440]+bestaudio/best[height<=1440]", // good format
 		"--newline",           // prevent flushing progress

@@ -1,6 +1,8 @@
 package workers
 
-type Worker func(string, chan Message)
+type Worker interface {
+	Process(string, chan Message)
+}
 
 const (
 	MessageTypeProgress = iota

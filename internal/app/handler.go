@@ -73,7 +73,7 @@ func (h *Handler) HandleRequest(ctx *th.Context, message telego.Message) error {
 	var title string = ""
 	var lastUpdateTime time.Time
 
-	go worker(request[1], messages)
+	go worker.Process(request[1], messages)
 
 	for msg := range messages {
 		switch msg.Type {
