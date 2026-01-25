@@ -36,6 +36,11 @@ func (a *Application) Run() error {
 
 	handler := NewHandler(a.c, map[string]workers.Worker{
 		"/y": workers.YoutubeDownloader{},
+		"/m": workers.MagnetDownloader{
+			API_URL:  a.c.QBITTORRENT_API_URL,
+			USERNAME: a.c.QBITTORRENT_API_USERNAME,
+			PASSWORD: a.c.QBITTORRENT_API_PASSWORD,
+		},
 	})
 
 	updates, _ := bot.UpdatesViaLongPolling(ctx, nil)
