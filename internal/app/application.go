@@ -35,7 +35,7 @@ func (a *Application) Run() error {
 	}
 
 	handler := NewHandler(a.c, map[string]workers.Worker{
-		"youtube": workers.YoutubeDownloader,
+		"/y": workers.YoutubeDownloader,
 	})
 
 	updates, _ := bot.UpdatesViaLongPolling(ctx, nil)

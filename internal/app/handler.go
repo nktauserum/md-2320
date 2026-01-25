@@ -57,6 +57,15 @@ func (h *Handler) HandleRequest(ctx *th.Context, message telego.Message) error {
 
 	tg_msg, _ := send_text(ctx, message.Chat.ChatID(), "processing your request...")
 
+	request := strings.Split(message.Text, " ")
+
+	worker, exists := h.w[request[0]]
+	if !exists {
+		update_msg(ctx, tg_msg,
+			"The Spirit of the Machine didn't understand your command.")
+		return nil
+	}
+
 	messages := make(chan workers.Message)
 
 	var logBuilder strings.Builder
@@ -64,7 +73,7 @@ func (h *Handler) HandleRequest(ctx *th.Context, message telego.Message) error {
 	var title string = ""
 	var lastUpdateTime time.Time
 
-	go h.w["youtube"](message.Text, messages)
+	go worker(request[1], messages)
 
 	for msg := range messages {
 		switch msg.Type {
