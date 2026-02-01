@@ -10,10 +10,13 @@ import (
 	"strings"
 )
 
-type YoutubeDownloader struct{}
+type YoutubeDownloader struct {
+	DOWNLOAD_FOLDER string
+}
 
 func (y YoutubeDownloader) Process(link string, msgs chan Message) {
 	cmd := exec.Command("yt-dlp",
+		"-P", y.DOWNLOAD_FOLDER, // specify download folder
 		"-f", "bestvideo[height<=1440]+bestaudio/best[height<=1440]", // good format
 		"--newline",           // prevent flushing progress
 		"--no-warnings",       // without any warnings, except errors

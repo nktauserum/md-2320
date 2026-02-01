@@ -10,7 +10,7 @@ import (
 )
 
 type MagnetDownloader struct {
-	API_URL, USERNAME, PASSWORD string
+	API_URL, USERNAME, PASSWORD, DOWNLOAD_FOLDER string
 }
 
 func (m MagnetDownloader) authorize() (string, error) {
@@ -46,7 +46,7 @@ func (m MagnetDownloader) Process(magnet_link string, msgs chan Message) {
 
 	writer.WriteField("urls", magnet_link)
 	writer.WriteField("autoTMM", "false")
-	writer.WriteField("savepath", "/downloads")
+	writer.WriteField("savepath", m.DOWNLOAD_FOLDER)
 	writer.WriteField("rename", "")
 	writer.WriteField("category", "")
 	writer.WriteField("stopped", "false")

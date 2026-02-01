@@ -35,11 +35,14 @@ func (a *Application) Run() error {
 	}
 
 	handler := NewHandler(a.c, map[string]workers.Worker{
-		"/y": workers.YoutubeDownloader{},
+		"/y": workers.YoutubeDownloader{
+			DOWNLOAD_FOLDER: a.c.DOWNLOAD_FOLDER,
+		},
 		"/m": workers.MagnetDownloader{
-			API_URL:  a.c.QBITTORRENT_API_URL,
-			USERNAME: a.c.QBITTORRENT_API_USERNAME,
-			PASSWORD: a.c.QBITTORRENT_API_PASSWORD,
+			API_URL:         a.c.QBITTORRENT_API_URL,
+			USERNAME:        a.c.QBITTORRENT_API_USERNAME,
+			PASSWORD:        a.c.QBITTORRENT_API_PASSWORD,
+			DOWNLOAD_FOLDER: a.c.DOWNLOAD_FOLDER,
 		},
 	})
 
