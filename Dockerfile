@@ -11,5 +11,6 @@ FROM alpine:latest
 
 WORKDIR /app
 COPY --from=builder /build/md2320 /app/md2320
+RUN apk add --no-cache yt-dlp
 RUN chmod +x /app/md2320
 CMD [ "/app/md2320" ]
