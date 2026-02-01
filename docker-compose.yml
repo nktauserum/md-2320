@@ -1,0 +1,6 @@
+services:
+  bot:
+    build: .
+    volumes:
+      - /home/nktauserum/downloads:/downloads
+    network_mode: host
