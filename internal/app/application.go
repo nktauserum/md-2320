@@ -4,9 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
+	"net/http"
+	"time"
 
 	"github.com/mymmrac/telego"
 	th "github.com/mymmrac/telego/telegohandler"
+	"golang.org/x/net/proxy"
 
 	"github.com/nktauserum/md-2320/internal/config"
 	"github.com/nktauserum/md-2320/pkg/workers"
@@ -20,15 +24,42 @@ func NewApplication(config *config.Config) *Application {
 	return &Application{c: config}
 }
 
-func NewBot(token string) (*telego.Bot, error) {
-	return telego.NewBot(token, telego.WithDefaultDebugLogger())
-}
-
 func (a *Application) Run() error {
 	ctx := context.Background()
 	log.Println("Starting the bot...")
 
-	bot, err := NewBot(a.c.TELEGRAM_TOKEN)
+	log.Println("Initiating the proxy connection...")
+
+	socksDialer, err := proxy.SOCKS5(
+		"tcp",
+		a.c.SOCKS_PROXY_ADDR,
+		nil,
+		&net.Dialer{Timeout: 10 * time.Second},
+	)
+
+	dialContext := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		return socksDialer.Dial(network, addr)
+	}
+
+	transport := &http.Transport{
+		DialContext:           dialContext,
+		DisableKeepAlives:     false,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: time.Second,
+	}
+
+	httpClient := &http.Client{
+		Transport: transport,
+		Timeout:   60 * time.Second,
+	}
+
+	bot, err := telego.NewBot(
+		a.c.TELEGRAM_TOKEN,
+		telego.WithDefaultDebugLogger(),
+		telego.WithHTTPClient(httpClient),
+	)
 	if err != nil {
 		fmt.Println(err)
 		return err

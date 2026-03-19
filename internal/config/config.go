@@ -16,6 +16,7 @@ type Config struct {
 	QBITTORRENT_API_USERNAME string  `yaml:"qbittorrent_api_username"`
 	QBITTORRENT_API_PASSWORD string  `yaml:"qbittorrent_api_password"`
 	DOWNLOAD_FOLDER          string  `yaml:"download_folder"`
+	SOCKS_PROXY_ADDR         string  `yaml:"socks_proxy_addr"`
 }
 
 func LoadConfig() (*Config, error) {
