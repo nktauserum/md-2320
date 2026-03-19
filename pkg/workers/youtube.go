@@ -2,12 +2,14 @@ package workers
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"os/exec"
 	"strings"
+	"sync"
 )
 
 type YoutubeDownloader struct {
@@ -15,7 +17,13 @@ type YoutubeDownloader struct {
 }
 
 func (y YoutubeDownloader) Process(link string, msgs chan Message) {
-	cmd := exec.Command("yt-dlp",
+	defer close(msgs)
+
+	var wg sync.WaitGroup
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "yt-dlp",
 		"-P", y.DOWNLOAD_FOLDER, // specify download folder
 		"-f", "bestvideo[height<=1440]+bestaudio/best[height<=1440]", // good format
 		"--newline",           // prevent flushing progress
@@ -25,30 +33,38 @@ func (y YoutubeDownloader) Process(link string, msgs chan Message) {
 		link, // actually a link on the target video
 	)
 
+	// Fetch video title in a separate goroutine
+	wg.Add(1)
 	go func() {
-		title_cmd := exec.Command("yt-dlp", "--ignore-errors", "--no-warnings", "--dump-json", link)
+		defer wg.Done()
+		title_cmd := exec.CommandContext(ctx, "yt-dlp", "--ignore-errors", "--no-warnings", "--dump-json", link)
 		out, err := title_cmd.Output()
 		if err != nil {
-			msgs <- error_msg(fmt.Sprintf("Error starting command: %v\n", err))
-		}
-
-		var dump map[string]any
-		json.Unmarshal(out, &dump)
-		if err != nil {
-			msgs <- error_msg(fmt.Sprintf("Error parsing json: %v\n", err))
-		}
-
-		if _, ok := <-msgs; !ok {
+			msgs <- error_msg(fmt.Sprintf("Error getting video info: %v\n", err))
 			return
 		}
 
-		msgs <- Message{Type: MessageTypeTitle, Content: fmt.Sprintf(
-			"**[%s](%s) - [%s](%s)**",
-			dump["title"].(string),
-			link,
-			dump["channel"].(string),
-			dump["channel_url"].(string),
-		)}
+		var dump map[string]any
+		err = json.Unmarshal(out, &dump)
+		if err != nil {
+			msgs <- error_msg(fmt.Sprintf("Error parsing json: %v\n", err))
+			return
+		}
+
+		// Safe type assertion to avoid panic
+		if title, ok := dump["title"].(string); ok {
+			if channel, ok := dump["channel"].(string); ok {
+				if channelURL, ok := dump["channel_url"].(string); ok {
+					msgs <- Message{Type: MessageTypeTitle, Content: fmt.Sprintf(
+						"**[%s](%s) - [%s](%s)**",
+						title,
+						link,
+						channel,
+						channelURL,
+					)}
+				}
+			}
+		}
 	}()
 
 	stdout, err := cmd.StdoutPipe()
@@ -69,17 +85,19 @@ func (y YoutubeDownloader) Process(link string, msgs chan Message) {
 	}
 
 	// processing outputs
-	go processOutput(stdout, msgs)
-	go processOutput(stderr, msgs)
+	wg.Add(2)
+	go processOutput(stdout, msgs, &wg)
+	go processOutput(stderr, msgs, &wg)
 
 	if err := cmd.Wait(); err != nil {
 		msgs <- error_msg(fmt.Sprintf("Command finished with error: %v\n", err))
 	}
 
-	close(msgs)
+	wg.Wait()
 }
 
-func processOutput(reader io.Reader, msgs chan Message) {
+func processOutput(reader io.Reader, msgs chan Message, wg *sync.WaitGroup) {
+	defer wg.Done()
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		line := scanner.Text() + "\n"

@@ -35,6 +35,8 @@ func (m MagnetDownloader) authorize() (string, error) {
 }
 
 func (m MagnetDownloader) Process(magnet_link string, msgs chan Message) {
+	defer close(msgs)
+
 	sid, err := m.authorize()
 	if err != nil {
 		msgs <- error_msg("error auth: " + err.Error())
@@ -83,6 +85,4 @@ func (m MagnetDownloader) Process(magnet_link string, msgs chan Message) {
 	defer response.Body.Close()
 
 	msgs <- info_msg("status: " + string(text))
-
-	close(msgs)
 }

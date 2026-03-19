@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"slices"
 	"strings"
 	"time"
@@ -49,6 +50,15 @@ func update_msg(ctx *th.Context, msg *telego.Message, text string) {
 }
 
 func (h *Handler) HandleRequest(ctx *th.Context, message telego.Message) error {
+	// Single recovery point for all panics in this handler
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Recovered from panic in HandleRequest: %v\n", r)
+			send_text(ctx, message.Chat.ChatID(), 
+				"**Error**: An unexpected error occurred while processing your request.")
+		}
+	}()
+
 	if !h.is_authorized(message.From.ID) {
 		send_text(ctx, message.Chat.ChatID(),
 			"You're not authorized to perform this operation. Get your permissions from the main technopriest.")
@@ -66,6 +76,7 @@ func (h *Handler) HandleRequest(ctx *th.Context, message telego.Message) error {
 		return nil
 	}
 
+	// Channel is closed by the worker via defer close(msgs)
 	messages := make(chan workers.Message)
 
 	var logBuilder strings.Builder
@@ -73,8 +84,10 @@ func (h *Handler) HandleRequest(ctx *th.Context, message telego.Message) error {
 	var title string = ""
 	var lastUpdateTime time.Time
 
+	// Worker will close the messages channel when done
 	go worker.Process(request[1], messages)
 
+	// Safe to read from channel until it's closed by worker
 	for msg := range messages {
 		switch msg.Type {
 		case workers.MessageTypeInfo:
