@@ -34,9 +34,7 @@ func (y YoutubeDownloader) Process(link string, msgs chan Message) {
 	)
 
 	// Fetch video title in a separate goroutine
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		title_cmd := exec.CommandContext(ctx, "yt-dlp", "--ignore-errors", "--no-warnings", "--dump-json", link)
 		out, err := title_cmd.Output()
 		if err != nil {
@@ -65,7 +63,7 @@ func (y YoutubeDownloader) Process(link string, msgs chan Message) {
 				}
 			}
 		}
-	}()
+	})
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
