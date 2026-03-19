@@ -54,7 +54,7 @@ func (h *Handler) HandleRequest(ctx *th.Context, message telego.Message) error {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("Recovered from panic in HandleRequest: %v\n", r)
-			send_text(ctx, message.Chat.ChatID(), 
+			send_text(ctx, message.Chat.ChatID(),
 				"**Error**: An unexpected error occurred while processing your request.")
 		}
 	}()
@@ -76,7 +76,6 @@ func (h *Handler) HandleRequest(ctx *th.Context, message telego.Message) error {
 		return nil
 	}
 
-	// Channel is closed by the worker via defer close(msgs)
 	messages := make(chan workers.Message)
 
 	var logBuilder strings.Builder
@@ -84,10 +83,8 @@ func (h *Handler) HandleRequest(ctx *th.Context, message telego.Message) error {
 	var title string = ""
 	var lastUpdateTime time.Time
 
-	// Worker will close the messages channel when done
 	go worker.Process(request[1], messages)
 
-	// Safe to read from channel until it's closed by worker
 	for msg := range messages {
 		switch msg.Type {
 		case workers.MessageTypeInfo:
