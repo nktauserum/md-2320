@@ -27,36 +27,47 @@ func main() {
 
 	log.Println("Initiating the proxy connection...")
 
-	socksDialer, err := proxy.SOCKS5(
-		"tcp",
-		cfg.SOCKS_PROXY_ADDR,
-		nil,
-		&net.Dialer{Timeout: 10 * time.Second},
-	)
+	var bot *telego.Bot
+	if cfg.SOCKS_PROXY_ADDR != "" {
+		socksDialer, err := proxy.SOCKS5(
+			"tcp",
+			cfg.SOCKS_PROXY_ADDR,
+			nil,
+			&net.Dialer{Timeout: 10 * time.Second},
+		)
+		if err != nil {
+			log.Fatalln(err)
+		}
 
-	dialContext := func(ctx context.Context, network, addr string) (net.Conn, error) {
-		return socksDialer.Dial(network, addr)
+		dialContext := func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return socksDialer.Dial(network, addr)
+		}
+
+		transport := &http.Transport{
+			DialContext:           dialContext,
+			DisableKeepAlives:     false,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: time.Second,
+		}
+
+		httpClient := &http.Client{
+			Transport: transport,
+			Timeout:   60 * time.Second,
+		}
+		bot, err = telego.NewBot(
+			cfg.TELEGRAM_TOKEN,
+			telego.WithDefaultDebugLogger(),
+			telego.WithHTTPClient(httpClient),
+		)
+	} else {
+		bot, err = telego.NewBot(
+			cfg.TELEGRAM_TOKEN,
+			telego.WithDefaultDebugLogger(),
+		)
 	}
 
-	transport := &http.Transport{
-		DialContext:           dialContext,
-		DisableKeepAlives:     false,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: time.Second,
-	}
-
-	httpClient := &http.Client{
-		Transport: transport,
-		Timeout:   60 * time.Second,
-	}
-
-	bot, err := telego.NewBot(
-		cfg.TELEGRAM_TOKEN,
-		telego.WithDefaultDebugLogger(),
-		telego.WithHTTPClient(httpClient),
-	)
 	if err != nil {
 		log.Fatalln(err)
 	}
